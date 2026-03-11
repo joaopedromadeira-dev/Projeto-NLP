@@ -155,3 +155,130 @@ endereço possui os 80 primeiros bits de alta prioridade com valores zero. Os 16
 os 32 bits restantes representam um endereço IPv4 [HID 98]. Um exemplo deste tipo de mapeamento é
 representado pelo endereço 0:0:0:0:0:FFFF:10.16.169.1, ou simplificando ::FFFF:10.16.169.1. - página 20 - segundo paragrafo.
 
+### 2025-03-10
+
+Experimentados modelos do sentencetransformes:
+
+1) Modelos de Busca Semântica ("multi-qa-mpnet-base-cos-v1"): 
+Este é um modelo de transformação de sentenças : ele mapeia sentenças e parágrafos para um espaço vetorial denso de 768 dimensões e foi projetado para busca semântica . 
+Ele foi treinado com 215 milhões de pares (pergunta, resposta) de diversas fontes. Para uma introdução à busca semântica, consulte: SBERT.net - Busca Semântica
+
+####
+from sentence_transformers import SentenceTransformer, util
+
+query = "How many people live in London?"
+docs = ["Around 9 Million people live in London", "London is known for its financial district"]
+
+#Load the model
+model = SentenceTransformer('sentence-transformers/multi-qa-mpnet-base-cos-v1')
+
+#Encode query and documents
+query_emb = model.encode(query)
+doc_emb = model.encode(docs)
+
+#Compute dot score between query and all document embeddings
+scores = util.dot_score(query_emb, doc_emb)[0].cpu().tolist()
+
+#Combine docs & scores
+doc_score_pairs = list(zip(docs, scores))
+
+#Sort by decreasing score
+doc_score_pairs = sorted(doc_score_pairs, key=lambda x: x[1], reverse=True)
+
+#Output passages & scores
+for doc, score in doc_score_pairs:
+    print(score, doc)
+###
+Resultado: 
+Métricas de avaliação:
+Precision@1: 0.7000
+Precision@3: 0.8000
+Precision@5: 0.9000
+MRR: 0.7893
+
+--- Exemplo de consulta ---
+0.7126	Endereço de translação para IPV4: Como existe a idéia do IPv6 substituir aos poucos as redes IPv4, f...
+0.6231	Desde 1990 já se sabia da necessidade de aumentar o endereçamento dos números IPs, devido ao grande ...
+0.5616	Portanto, dos quatorze campos que existem na versão anterior, passou-se a ter oito campos na nova ve...
+
+
+#####
+2) Modelos de controle de qualidade múltiplo
+
+multi-qa-mpnet-base-dot-v1
+
+Este é um modelo de transformação de sentenças : ele mapeia sentenças e parágrafos para um espaço vetorial denso de 768 dimensões e foi projetado para busca semântica .
+Ele foi treinado com 215 milhões de pares (pergunta, resposta) de diversas fontes. Para uma introdução à busca semântica, consulte: SBERT.net - Busca Semântica
+
+from sentence_transformers import SentenceTransformer, util
+
+query = "How many people live in London?"
+docs = ["Around 9 Million people live in London", "London is known for its financial district"]
+
+# Load the model
+model = SentenceTransformer('sentence-transformers/multi-qa-mpnet-base-dot-v1')
+
+# Encode query and documents
+query_emb = model.encode(query)
+doc_emb = model.encode(docs)
+
+# Compute dot score between query and all document embeddings
+scores = util.dot_score(query_emb, doc_emb)[0].cpu().tolist()
+
+# Combine docs & scores
+doc_score_pairs = list(zip(docs, scores))
+
+# Sort by decreasing score
+doc_score_pairs = sorted(doc_score_pairs, key=lambda x: x[1], reverse=True)
+
+# Output passages & scores
+for doc, score in doc_score_pairs:
+    print(score, doc)
+###
+Resultados
+Métricas de avaliação (modelo dot-v1, similaridade por produto escalar):
+Precision@1: 0.8000
+Precision@3: 0.9000
+Precision@5: 0.9000
+MRR: 0.8500
+
+--- Exemplo de consulta ---
+25.9954	O conceito de endereço anycast é mais recente do que o unicast e o multicast. Pode-se dizer que o an...
+19.2742	O multicast é um tipo de transmissão onde se transmite um único pacote para todos os nós que fazem p...
+17.0688	Portanto, dos quatorze campos que existem na versão anterior, passou-se a ter oito campos na nova ve...
+
+3) Modelos de Passagem MSMARCO
+##
+from sentence_transformers import SentenceTransformer, util
+
+query = "How many people live in London?"
+docs = ["Around 9 Million people live in London", "London is known for its financial district"]
+
+#Load the model
+model = SentenceTransformer('sentence-transformers/msmarco-bert-base-dot-v5')
+
+#Encode query and documents
+query_emb = model.encode(query)
+doc_emb = model.encode(docs)
+
+#Compute dot score between query and all document embeddings
+scores = util.dot_score(query_emb, doc_emb)[0].cpu().tolist()
+
+#Combine docs & scores
+doc_score_pairs = list(zip(docs, scores))
+
+#Sort by decreasing score
+doc_score_pairs = sorted(doc_score_pairs, key=lambda x: x[1], reverse=True)
+
+#Output passages & scores
+print("Query:", query)
+for doc, score in doc_score_pairs:
+    print(score, doc)
+
+##
+Resultados:
+Métricas de avaliação (modelo msmarco-bert-base-dot-v5, similaridade por produto escalar):
+Precision@1: 0.7000
+Precision@3: 0.9000
+Precision@5: 1.0000
+MRR: 0.8200
