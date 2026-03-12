@@ -120,3 +120,4 @@ na pilha de protocolos. Os mecanismos, que fazem parte desta classe, são BIS e 
 # 11/03/26
 
 ## Introdução a LangChain + exemplos de implementação básicos
+## https://colab.research.google.com/drive/1OEy1-dgBhbDQ96qlwvP7vHek7KRpSDp_#scrollTo=kffDXmJvZsch
