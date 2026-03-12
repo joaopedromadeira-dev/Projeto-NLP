@@ -116,3 +116,7 @@ na pilha de protocolos. Os mecanismos, que fazem parte desta classe, são BIS e 
 2.O que descreve a RFC 2893?R = “A RFC 2893, ‘Transition Mechanisms for IPv6 Hosts and Routers’, descreve o conjunto inicial de mecanismos de transição.”
 3.O que é um nó que utiliza pilha dupla?R = “Um nó que utilize pilha dupla tem suporte complete para as duas versões do protocolo IP.”
 4.Como redes corporativas geralmente utilizam NAT?R = “Redes corporativas usam endereços IPv4 da faixa privada e um roteador NAT na borda da rede corporativa para traduzir os endereços privados em um único ou em alguns poucos endereços públicos.” 
+
+# 11/03/26
+
+## Introdução a LangChain + exemplos de implementação básicos

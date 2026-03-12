@@ -132,3 +132,7 @@ Top 5 most similar sentences in answears:
 (Score: 0.5147) eles podem aparecer mais de uma vez no pacote. O único cabeçalho que pode...
 
 ```
+
+### 2025-03-11
+
+Introdução ao langchain e testes de uso
