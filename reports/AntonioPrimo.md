@@ -286,3 +286,162 @@ MRR: 0.8200
 ### 2026-03-11
 Primeiro contato com o langchain:
 https://docs.langchain.com/oss/python/langchain/knowledge-base
+
+### 2026-03-12
+Carregar documento PDF:
+
+####
+import os
+!pip install -qU langchain-community pypdf
+
+from langchain_community.document_loaders import PyPDFLoader
+
+def carregar_pdf(caminho_arquivo):
+    """
+    Carrega um documento PDF e retorna as páginas como documentos.
+
+    Args:
+        caminho_arquivo (str): Caminho para o arquivo PDF.
+
+    Returns:
+        list: Lista de documentos (páginas) carregados.
+    """
+    if not os.path.exists(caminho_arquivo):
+        raise FileNotFoundError(f"Arquivo não encontrado: {caminho_arquivo}")
+
+    loader = PyPDFLoader(caminho_arquivo)
+    documentos = loader.load()
+    return documentos
+
+if __name__ == "__main__":
+    # Exemplo: permite que o usuário digite o caminho ou use um padrão
+    caminho_padrao = "../example_data/nke-10k-2023.pdf"
+
+    # Opção 1: usar caminho fixo (como no código original)
+    # caminho = caminho_padrao
+
+    # Opção 2: perguntar ao usuário
+    caminho = input("Digite o caminho do arquivo PDF (ou pressione Enter para usar o padrão): ").strip()
+    if not caminho:
+        caminho = caminho_padrao
+
+    try:
+        docs = carregar_pdf(caminho)
+        print(f"Total de páginas carregadas: {len(docs)}")
+
+        # Exibe a primeira página como exemplo
+        if docs:
+            print("\n--- Primeira página ---")
+            print(docs[0].page_content[:500])  # primeiros 500 caracteres
+            print(f"Metadados: {docs[0].metadata}")
+    except Exception as e:
+        print(f"Erro ao carregar o PDF: {e}")
+
+####
+Chunks:
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+import os
+
+# Caminho específicO
+caminho_pdf = "/content/drive/MyDrive/UC15/TCC  versão 4.6.pdf"
+
+# Verificar se o arquivo existe
+if not os.path.exists(caminho_pdf):
+    print(f"ERRO: Arquivo não encontrado em: {caminho_pdf}")
+    print("Verifique se o Google Drive está montado e o caminho está correto.")
+else:
+    print(f"Arquivo encontrado: {caminho_pdf}")
+    
+    # Carregar o documento PDF
+    loader = PyPDFLoader(caminho_pdf)
+    docs = loader.load()
+    
+    print(f"Total de páginas carregadas: {len(docs)}")
+    
+    # Configurar e aplicar o splitter
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000, 
+        chunk_overlap=200, 
+        add_start_index=True
+    )
+    
+    all_splits = text_splitter.split_documents(docs)
+    
+    print(f"Total de chunks após divisão: {len(all_splits)}")
+    
+    # Opcional: mostrar informações sobre os primeiros chunks
+    if all_splits:
+        print("\n--- Primeiro chunk ---")
+        print(f"Tamanho: {len(all_splits[0].page_content)} caracteres")
+        print(f"Conteúdo (início): {all_splits[0].page_content[:200]}...")
+        print(f"Metadados: {all_splits[0].metadata}")
+
+###
+EMBEDDINGS:
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
+from google.colab import drive
+
+caminho_pdf = "/content/drive/MyDrive/UC15/TCC  versão 4.6.pdf"
+
+# Carregar e dividir
+docs = PyPDFLoader(caminho_pdf).load()
+all_splits = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200).split_documents(docs)
+
+# Criar embeddings
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+vector_1 = embeddings.embed_query(all_splits[0].page_content)
+vector_2 = embeddings.embed_query(all_splits[1].page_content)
+vector_3 = embeddings.embed_query(all_splits[2].page_content)
+vector_4 = embeddings.embed_query(all_splits[3].page_content)
+vector_5 = embeddings.embed_query(all_splits[4].page_content)
+
+print(f"Vetores gerados - Tamanho: {len(vector_1)}")
+print(f"Primeiros 10 elementos: {vector_1[:10]}")
+####
+ARMAZENAMENTO EM ESPACO VETORIAL
+*** In memory *** 
+pip install -U "langchain-core"
+
+from langchain_core.vectorstores import InMemoryVectorStore
+
+vector_store = InMemoryVectorStore(embeddings)
+ids = vector_store.add_documents(documents=all_splits)
+
+print(f"IDs dos documentos adicionados: {ids[:5]}...")  # Mostra primeiros 5 IDs
+print(f"Total de documentos adicionados: {len(ids)}")
+print(f"Total de vetores no índice: {len(ids)}")
+
+*** chroma Data base *** 
+
+pip install -qU langchain-chroma
+vector_store = Chroma.from_documents(
+    documents=all_splits,
+    embedding=embeddings,
+    collection_name="tcc_uc15_collection",
+    persist_directory="/content/drive/MyDrive/UC15/chroma_langchain_db"
+)
+
+print(f"Vector store criado com {vector_store._collection.count()} documentos")
+
+
+######
+BUSCA POR SIMILIARIDADE
+# Realizar uma busca de similaridade
+query = "O que é o protocolo IPV6?"
+docs_busca = vector_store.similarity_search(query, k=3)
+
+print("\nResultados da busca:")
+for i, doc in enumerate(docs_busca):
+    print(f"\n--- Resultado {i+1} ---")
+    print(f"Conteúdo: {doc.page_content[:200]}...")
+    print(f"Metadados: {doc.metadata}")
+
+results = vector_store.similarity_search_with_score("Quais são as vantagens do endereçamento multicast em comparação ao unicast e anycast, considerando aspectos como eficiência de banda, escalabilidade e aplicações típicas")
+doc, score = results[0]
+print(f"Score: {score}\n")
+print(doc)
+
+#####
