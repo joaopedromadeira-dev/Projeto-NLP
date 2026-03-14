@@ -136,3 +136,7 @@ Top 5 most similar sentences in answears:
 ### 2025-03-11
 
 Introdução ao langchain e testes de uso
+
+### 2025-03-13
+
+Testes no ambiente virtualizado da GPU
