@@ -1,10 +1,10 @@
 ## Diário
 
-### 2025-03-05
+### 2026-03-05
 
 * Foi definido que o material de base para treinamento do modelo será o arquivo "TCC versão 4.6.pdf"
 
-### 2025-03-06
+### 2026-03-06
 
 * Testes nas bibliotecas PyMuPDF e PyPDF. A primeira deu um resultado muito mais satisfatório.
 
@@ -30,7 +30,7 @@ import hashlib
 
 * Modelos: https://huggingface.co/PORTULAN
 
-### 2025-03-09
+### 2026-03-09
 
 #### Information Retrieval
 
@@ -80,7 +80,7 @@ podendo então ser transmitido. |
 | 10. Quantas vezes os cabeçalhos opcionais de extensão podem aparecer num pacote IPv6? |
 | R: eles podem aparecer mais de uma vez no pacote. O único cabeçalho que pode aparecer no máximo duas vezes é o Destination Options Header |
 
-### 2025-03-10
+### 2026-03-10
 
 #### Tarefa do dia
 
@@ -133,10 +133,41 @@ Top 5 most similar sentences in answears:
 
 ```
 
-### 2025-03-11
+### 2026-03-11
 
 Introdução ao langchain e testes de uso
 
-### 2025-03-13
+### 2026-03-13
 
 Testes no ambiente virtualizado da GPU
+
+### 2026-03-16
+
+* Definição de _In_context Learning_
+* [Re-rankers](https://sbert.net/examples/sentence_transformer/applications/retrieve_rerank/README.html#)
+* [Modelos de cross-encoders](https://huggingface.co/cross-encoder/models?p=0)
+
+```bash
+sudo add-apt-repository ppa:mozillateam/ppa
+sudo apt update
+sudo apt install -t 'o=LP-PPA-mozillateam' firefox
+echo 'Package: firefox
+Pin: release o=LP-PPA-mozillateam
+Pin-Priority: 1001' | sudo tee /etc/apt/preferences.d/mozilla-firefox
+sudo apt install apparmor-utils
+sudo aa-complain /etc/apparmor.d/usr.bin.firefox
+
+#Se der um erro no fim
+sudo rm /etc/apparmor.d/firefox
+```
+
+### 2026-03-17
+
+* [Rerankers in RAG](https://medium.com/@avd.sjsu/rerankers-in-rag-2f784fc977f3)
+* [Rerankers and two stage retrieval](https://www.pinecone.io/learn/series/rag/rerankers/)
+* [Bi-encoders and Cross-encoders for Sentence Pair Similarity Scoring](https://www.dailydoseofds.com/bi-encoders-and-cross-encoders-for-sentence-pair-similarity-scoring-part-1/)
+* [Agentic Retrieval Guide: Beyond Naive RAG | LlamaIndex](https://www.llamaindex.ai/blog/rag-is-dead-long-live-agentic-retrieval)
+
+#### Tarefa do dia
+
+* Ajustar o código que havíamos usado de `SentenceTransformers` para usar `Reranker` com base no exemplo da página do `SBert` de ontem
