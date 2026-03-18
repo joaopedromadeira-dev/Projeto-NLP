@@ -126,3 +126,6 @@ na pilha de protocolos. Os mecanismos, que fazem parte desta classe, são BIS e 
 
 ## Implementação LangChain + modelos HF(SERAFIM e BERTIMBAU)
 
+# 16/03/26
+
+## Acesso a VM e Configuração do browser da VM, tentando instalar o ambiente para rodar o python
