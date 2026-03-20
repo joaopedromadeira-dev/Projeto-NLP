@@ -472,7 +472,7 @@ Finalizacao do codigo que executa os seguintes passos (Retrieve & Re-Rank para p
 3. Usa um bi-encoder para busca semântica inicial
 4. Reordena os resultados com um cross-encoder para melhor precisão
 
-
+RETRIVE E RE-RANK
 # !pip install -U sentence-transformers rank_bm25
 
 import random
@@ -685,8 +685,382 @@ search("Como funciona o anycast no IPv6?")
 =====
 
 
-### 2026-03-17
+### 2026-03-18
 
 1.Leitura e compreensão dos colab da aula de hoje:
 a)Código de referência do 2-stage IR usando a API do langchain_classic.
 b)_código de referência do 2-stage IR refatorado para (segundo o LLM).
+
+### 2026-03-19
+
+Ausente, reunião escolar.
+
+### 2026-03-20
+
+Criação do código e testes na VM (legacy)
+
+
+CUSTOMIZE O PRIMEIRO CODIGO(RETRIVE) PARA O 2(LEGACY): RETRIVE E RE-RANK
+# !pip install -U sentence-transformers rank_bm25
+
+import random
+import numpy as np
+import torch
+from sentence_transformers import CrossEncoder, SentenceTransformer, util
+
+if not torch.cuda.is_available():
+    print("Warning: No GPU found. Please add GPU to your notebook")
+
+# Configuração dos modelos
+bi_encoder = SentenceTransformer("multi-qa-MiniLM-L6-cos-v1")
+bi_encoder.max_seq_length = 256  # Truncar passagens longas para 256 tokens
+top_k = 10  # Número de passagens a recuperar com o bi-encoder
+
+cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L6-v2")
+
+# Conjunto de perguntas e respostas sobre IPv6
+qa_pairs = [
+    {
+        "question": "Quais são as vantagens do endereçamento multicast em comparação ao unicast e anycast?",
+        "answer": """O multicast é um tipo de transmissão onde se transmite um único pacote para todos os nós que fazem parte
+de um determinado endereço multicast. A vantagem que uma transmissão tem em relação ao unicast é a
+economia de banda da rede, pois transmite um único pacote para vários nós ao mesmo tempo, o que não
+ocorre com uma transmissão unicast, onde é transmitido um pacote para cada nó da rede. Algumas
+transmissões de vídeos pela rede usam multicast, economizando assim a banda da rede - Pagina 22 - Primeiro paragrafo do item 2.3.2"""
+    },
+    {
+        "question": "Além da forma preferencial de representação dos endereços IPv6, quais são os métodos de abreviação permitidos?",
+        "answer": """i) Um dos métodos utilizados na representação do endereçamento é de suprimir os zeros da esquerda de cada
+parte de 16 bits [HID 98]. Para exemplificar este método, usaremos como exemplo “1.2.2”. Aplicando o
+método de representação, o exemplo ficaria da seguinte forma:
+1080:8:0:800:0:0:0:0.;
+
+ii) Outra forma de simplificar é suprimir as seqüências de 16 bits com valores iguais a zero. Assim, os
+exemplos 1.2.2 e 1.2.3 ficariam respectivamente 1080:0008:0000:0800:: e 3FFE:2B00:0100:0107::0001.
+Deve-se ter o cuidado de suprimir somente uma seqüência de 16 bits. Ou seja, considerando o exemplo
+1.2.2, ele não poderia ficar assim 1080:0008::0800::. Pode se ver que ele tem duas vezes o sinal de dois
+pontos juntos o que seria inválido. Somente se pode ter uma única vez os sinais de dois pontos juntos [HID
+98].
+
+página 17 - Segundo e terceiro paragrafo do item 2.2"""
+    },
+    {
+        "question": "Qual foi a principal motivação para o desenvolvimento do protocolo IPv6, considerando o contexto de esgotamento dos endereços IPv4 na década de 1990?",
+        "answer": """Desde 1990 já se sabia da necessidade de aumentar o endereçamento dos números IPs, devido ao grande
+aumento que estava ocorrendo na Internet e que em pouco tempo se esgotariam os números IPs. Este
+problema eminente foi resolvido em duas etapas, a primeira foi a redistribuição dos endereços através da
+proposta do Classless Inter-Domain Routing (CIDR), especificado na RFC 1518 e 1519. Isto deu um tempo
+a mais para a criação de uma nova proposta de endereçamento [SAL 00]. A segunda etapa foi a criação de
+um novo protocolo que aumentaria os endereços IPs. Então a IETF (Internet Engineering Task Force) criou
+um grupo de trabalho para desenvolver o novo protocolo chamado inicialmente de IPng (Internet Protocol
+New Generation), o qual iria substituir o protocolo atual que passou a ser denominado IPv4 (Internet
+Protocol version 4). Então, em 1994, após várias discussões e revisões de propostas para o novo protocolo,
+o grupo de trabalho do IPng decidiu que caminho seguir. A proposta escolhida foi o SIPP (Simple IP Plus)
+[SIL 97] - Página 16 - quarto paragrafo."""
+    },
+    {
+        "question": "Quais campos do cabeçalho IPv4 foram eliminados ou modificados no cabeçalho base do IPv6 para simplificar o processamento pelos roteadores?",
+        "answer": """Portanto, dos quatorze campos que existem na
+versão anterior, passou-se a ter oito campos na nova versão do IP. Somente três campos continuam com a
+mesma denominação e função, que são: version, source address e destination address. Alguns campos
+como, por exemplo, o total length do IPv4 foi substituído por payload length e teve uma pequena mudança
+como será visto mais adiante - página 26 - primeiro paragrafo."""
+    },
+    {
+        "question": "Quais são as regras fundamentais para a implementação e uso correto do campo Flow Label no cabeçalho IPv6?",
+        "answer": """Existem três regras a serem cumpridas quando é implementado o uso do flow label, estas regras são [STA
+00]:
+
+ - Host e roteadores que não suportam o flow label devem, ao criar o pacote, atribuir o valor zero para
+o campo, não modificar o campo quando for repassar o pacote e ignorar o campo quando receber o
+pacote.
+ - Os pacotes criados por um nó com o mesmo valor e não zero do flow label devem ter o mesmo
+endereço destino e origem, e se for o caso, o Hop-by-hop Options Header e Routing Header iguais
+(estes dois cabeçalhos serão apresentados no capitulo dois).
+ - Para obter um valor flow label para um fluxo de dados, deve ser escolhido um valor na faixa entre 1
+e (220 – 1) e não se deve reusar o mesmo valor do flow label para um novo fluxo de dados quando
+terminar o tempo de vida do primeiro. O valor zero é reservado para informar que o campo não está
+sendo usado. Página 26 e 27 do item 2.4 - terceiro paragrafo."""
+    },
+    {
+        "question": "Como o campo Payload Length do IPv6 difere do campo Total Length do IPv4 em termos de escopo de contagem?",
+        "answer": """O campo Payload Length é equivalente ao campo total length (tamanho total) no IPv4. A diferença entre
+eles é que, por definição, o payload length significa somente o tamanho de dados em octetos após o
+cabeçalho, excluindo o tamanho do cabeçalho. Isso não ocorria no IPv4, que contabilizava tudo, inclusive o
+cabeçalho [HUI 00]. 4 paragrafo - pagina 27"""
+    },
+    {
+        "question": "Qual é a função do campo Hop Limit no IPv6 e como ele evita que pacotes fiquem indefinidamente em loop na rede?",
+        "answer": """O campo Hop Limit é um inteiro positivo de 8 bits de tamanho. Sua funcionalidade é de saber quando o
+pacote deve ser descartado por um roteador, assim, o pacote não ficará vagando eternamente pela rede, se
+não for encontrado o seu destino. Funciona da seguinte forma: cada vez que o pacote é passado adiante
+por um roteador, e seu valor é decrementado de um. Quando o valor for igual a zero, o pacote é descartado
+[SAL 00]. sexto paragrafo - pagina 27"""
+    },
+    {
+        "question": "Qual é o tamanho dos campos de endereço de origem e destino no IPv6 e qual a principal consequência desse aumento em relação à capacidade de endereçamento da Internet?",
+        "answer": """Os campos source address e destination address são, respectivamente, os endereços de origem e destino
+do pacote. Cada um destes campos possui o tamanho de 128 bits [DEE 98]. sétimo paragrafo - pagina 27"""
+    },
+    {
+        "question": "O que caracteriza um endereço anycast e em que situações práticas ele é mais vantajoso que o unicast ou multicast?",
+        "answer": """O conceito de endereço anycast é mais recente do que o unicast e o multicast. Pode-se dizer que o anycast
+é uma mistura do unicast e do multicast. A finalidade deste endereço pode ser exemplificada numa situação,
+onde se deseja requisitar um servidor de nomes de uma rede. A máquina requisitante irá enviar um pacote
+para um determinado endereço anycast, que todos os servidores de nome possuem. O roteador se
+encarregará de entregar o pacote ao servidor mais próximo da máquina que requisitou [HUI 98]. pagina 27 - primeiro paragrafo do item 2.3.3"""
+    },
+    {
+        "question": "Quais são os dois tipos de endereços IPv6 utilizados para compatibilidade com redes IPv4?",
+        "answer": """Endereço de translação para IPV4:
+Como existe a idéia do IPv6 substituir aos poucos as redes IPv4, foi criado um mecanismo para fazer o
+tunelamento dinamicamente de pacotes IPv6 para pacotes IPv4. Os nós que usam esta técnica têm um
+endereço unicast especial, que carrega nos 32-bits de baixa prioridade um endereço IPv4. Os restantes dos
+96 bits são representados por zeros. Esta técnica é chamada de IPv4, compatível com endereço IPv6 [HID
+98]. O endereço 0:0:0:0:0:0:10.16.169.1 (ou ::10.16.169.1) é um exemplo dessa técnica.
+Existe também um segundo tipo de endereço de translação que é o mapeamento do IPv4 para endereço
+IPv6. Ou seja, serve para representar nós que não suportam endereços IPv6. Foi definido que este tipo de
+endereço possui os 80 primeiros bits de alta prioridade com valores zero. Os 16 bits após têm o valor um e
+os 32 bits restantes representam um endereço IPv4 [HID 98]. Um exemplo deste tipo de mapeamento é
+representado pelo endereço 0:0:0:0:0:FFFF:10.16.169.1, ou simplificando ::FFFF:10.16.169.1. - página 20 - segundo paragrafo."""
+    }
+]
+
+# Preparar o corpus de respostas
+answers = [qa["answer"] for qa in qa_pairs]
+
+print(f"Total de perguntas/respostas carregadas: {len(answers)}")
+
+# Codificar todas as respostas para busca semântica
+print("\nCodificando respostas para busca semântica...")
+corpus_embeddings = bi_encoder.encode(answers, convert_to_tensor=True, show_progress_bar=True)
+
+def search(query, expected_answer_index=None):
+    """
+    Função de busca que encontra respostas relevantes para uma pergunta
+    """
+    print(f"\n{'='*60}")
+    print(f"Pergunta: {query}")
+    print(f"{'='*60}")
+    
+    # Se temos o índice da resposta esperada, mostrar ela primeiro
+    if expected_answer_index is not None:
+        print("\n✅ Resposta correta esperada (primeiro parágrafo):")
+        preview = answers[expected_answer_index][:200] + "..."
+        print(f"   {preview}")
+    
+    ##### Busca Semântica #####
+    # Codificar a pergunta usando o bi-encoder
+    question_embedding = bi_encoder.encode(query, convert_to_tensor=True)
+    if torch.cuda.is_available():
+        question_embedding = question_embedding.cuda()
+    
+    hits = util.semantic_search(question_embedding, corpus_embeddings, top_k=top_k)
+    hits = hits[0]
+    
+    # Adicionar scores da busca semântica inicial
+    for hit in hits:
+        hit['retrieval-score'] = hit['score']
+    
+    ##### Re-Ranking com Cross-Encoder #####
+    cross_inp = [[query, answers[hit["corpus_id"]]] for hit in hits]
+    cross_scores = cross_encoder.predict(cross_inp)
+    
+    for idx in range(len(cross_scores)):
+        hits[idx]["cross-score"] = cross_scores[idx]
+    
+    # Resultados da busca semântica inicial
+    print(f"\n📊 Top-{min(3, len(hits))} resultados da Busca Semântica Inicial:")
+    hits_retrieval = sorted(hits, key=lambda x: x["retrieval-score"], reverse=True)
+    for i, hit in enumerate(hits_retrieval[:3]):
+        preview = answers[hit["corpus_id"]][:100].replace("\n", " ") + "..."
+        print(f"   {i+1}. Score: {hit['retrieval-score']:.3f} | {preview}")
+        if expected_answer_index is not None and hit["corpus_id"] == expected_answer_index:
+            print("      ⭐ ESTA É A RESPOSTA CORRETA!")
+    
+    # Resultados após re-ranking
+    print(f"\n🎯 Top-{min(3, len(hits))} resultados após Re-ranking (Cross-Encoder):")
+    hits_reranked = sorted(hits, key=lambda x: x["cross-score"], reverse=True)
+    for i, hit in enumerate(hits_reranked[:3]):
+        preview = answers[hit["corpus_id"]][:100].replace("\n", " ") + "..."
+        print(f"   {i+1}. Score: {hit['cross-score']:.3f} | {preview}")
+        if expected_answer_index is not None and hit["corpus_id"] == expected_answer_index:
+            print("      ⭐ ESTA É A RESPOSTA CORRETA!")
+    
+    # Verificar se a resposta correta está no top-3 após re-ranking
+    if expected_answer_index is not None:
+        top3_ids = [hit["corpus_id"] for hit in hits_reranked[:3]]
+        if expected_answer_index in top3_ids:
+            print(f"\n✅ SUCESSO: A resposta correta está no Top-3 após re-ranking!")
+        else:
+            print(f"\n❌ A resposta correta NÃO está no Top-3 após re-ranking.")
+            print(f"   Posição da resposta correta: {[hit['corpus_id'] for hit in hits_reranked].index(expected_answer_index) + 1}ª")
+
+# Selecionar 3 perguntas aleatórias
+print("\n🎲 Selecionando 3 perguntas aleatórias do conjunto...")
+selected_indices = random.sample(range(len(qa_pairs)), 3)
+print(f"Índices selecionados: {selected_indices}")
+
+# Executar busca para cada pergunta selecionada
+for idx in selected_indices:
+    question = qa_pairs[idx]["question"]
+    search(question, expected_answer_index=idx)
+    print("\n" + "="*60 + "\n")
+
+# Opcional: Teste com uma pergunta personalizada
+print("\n🔍 Teste com pergunta personalizada:")
+search("Como funciona o anycast no IPv6?")
+
+
+
+
+LEGACY
+=======
+
+
+# @title Setup Env
+!pip install -q transformers datasets accelerate bitsandbytes sentence-transformers chromadb \
+                langchain langchain-huggingface langchain-chroma langchain-community langchain-ollama \
+                --upgrade
+
+# 2-stage IR with `langchain_classic` compressor/reranker
+
+After many days combing through the LangChain docs, outdated tutorials, and mutually contradicting LLMs, I figured why I was having so much trouble adding a second stage my base information retrieval pipeline.
+
+In `langchain > 1.x` a lot has changed from the older versions, including the setup of a HF cross-encoder reranker. Some of the classes used in "the old way" now are part of `langchain_classic`, which I guess means they are deprecated until further notice?
+
+Anyway, I still wanted to give it a shot at assembling the pipeline myself from the sources I found (and extensive help from LLMs), even though it's probably (definitely) no longer the recommended way to go with newer LangChain versions.
+
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.cross_encoders import HuggingFaceCrossEncoder
+from langchain_classic.retrievers.document_compressors.cross_encoder_rerank import CrossEncoderReranker
+from langchain_classic.retrievers.contextual_compression import ContextualCompressionRetriever
+
+from sentence_transformers import CrossEncoder
+from transformers import AutoTokenizer
+
+import torch
+import hashlib
+import os
+
+# @title Load pretrained embedder model
+
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device {device}.")
+model_kwargs = {'device': device, # Use 'cuda:0' to specify a GPU, if multiple available
+                # 'device_map': 'auto' # Use this to automatically spread the model across multiple GPUs, or
+                #       to offload parts of the model from the GPU to the CPU if it's too big for VRAM. DON'T SET BOTH
+                }
+
+model_name = "PORTULAN/serafim-100m-portuguese-pt-sentence-encoder"
+embedding_model = HuggingFaceEmbeddings(model_name=model_name,
+                                        model_kwargs=model_kwargs)
+# Change max length for longer chunks (BERT-style models support a max sequence len of 512)
+embedding_model._client.max_seq_length = 512
+
+# Load tokenizer separately to use `RecursiveCharacterTextSplitter.from_huggingface_tokenizer`
+embedding_tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+embedding_model
+
+# @title Instantiate and populate vector DB with chunked dummy documents
+
+
+print("Starting Chroma...")
+# Setup ChromaDB
+vector_store = Chroma(
+    collection_name="my_collection",
+    embedding_function=embedding_model, # Embeddings are calculated on the fly
+    persist_directory="./chroma_langchain_db", # Save data locally, or use host=[...] to connect to an existing ChromaDB server
+    # host="localhost",
+)
+
+# Download "database"
+!curl -o glossary.md https://raw.githubusercontent.com/GabrielvanderSchmidt/SENAC-DLGlossary/refs/heads/main/glossary.md
+
+print("Doc-in' n' chunkin'...")
+documents = [file for file in os.listdir(".") if os.path.isfile(file)]
+documents_text = []
+documents_meta = []
+i = 0
+for doc in documents:
+    with open(doc, "r") as file:
+        documents_text.append(file.read())
+        documents_meta.append({"document_id" : str(i),
+                               "tags" : ["learning", "AI"],
+                               "source" : doc})
+        i = i+1
+
+# Convert strings to Document objects
+documents = [Document(page_content=text, metadata=meta) for text, meta in zip(documents_text, documents_meta)]
+
+# Chunk docs
+text_splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
+    tokenizer=embedding_tokenizer, # Load tokenizer to calculate chunk length
+    chunk_size=200, # Chunk size (tokens) -- must be smaller than embedder sequence length
+    chunk_overlap=30, # Chunk overlap (tokens) so context isn't lost at the "edges" of chunks
+    add_start_index=True, # (Try to) Track index in original document
+)
+
+all_splits = text_splitter.split_documents(documents)
+print(f"Documents split in {len(all_splits)} chunks.")
+
+# Ids can be generated beforehand, or created by the `add_documents` call
+# Let's generate them with our hashing function
+def generate_ids(chunks):
+    text_chunk = [chunk.page_content for chunk in chunks]
+    encoded_chunks = [chunk.encode("utf-8") for chunk in text_chunk]
+    hashes = [hashlib.md5(chunk).hexdigest() for chunk in encoded_chunks]
+    return hashes
+
+print("Embedding and pushing to vector DB...")
+ids = generate_ids(all_splits)
+vector_store.add_documents(documents=all_splits, ids=ids) # Outputs added ids
+
+# Check chunking output
+vector_store.get(ids=ids[0])
+
+# @title Load pretrained cross-encoder model
+
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"Using device {device}.")
+model_kwargs = {'device': device, # Use 'cuda:0' to specify a GPU, if multiple available
+                # 'device_map': 'auto' # Use this to automatically spread the model across multiple GPUs, or to offload
+                #        parts of the model from the GPU to the CPU if it's too big for VRAM. DON'T SET BOTH
+                }
+
+# model_name = "PORTULAN/albertina-1b5-portuguese-ptbr-encoder" # Final model we will want to use
+model_name =  "cross-encoder/ms-marco-MiniLM-L-6-v2" # Placeholder model for now
+cross_encoder_model = HuggingFaceCrossEncoder(model_name=model_name,
+                                              model_kwargs=model_kwargs)
+cross_encoder_model
+
+# @title Setup two-stage retrieval pipeline
+
+
+# Set vector DB + embedding model as a retriever (1st stage)
+base_retriever = vector_store.as_retriever(
+    search_type="similarity",
+    search_kwargs={"k": 20} # Retrieve a massive candidate pool for subsequent reranking
+) # In this stage, we maximize recall (minimize false negatives - important context left out)
+
+# Initialize reranking object (2nd stage)
+reranker = CrossEncoderReranker(
+    model=cross_encoder_model,
+    top_n=3 # Retain only the 3 most strictly relevant chunks
+) # In this stage, we maximize precision (minimize false positives - trash let in)
+
+# Construct the unified two-stage retrieval pipeline
+compression_retriever = ContextualCompressionRetriever(
+    base_compressor=reranker,
+    base_retriever=base_retriever
+)
+
+for i, doc in enumerate(compression_retriever.invoke("Qual é o componente mais fundamental de redes neurais?")):
+    print(f"Top {i+1} match:")
+    print(doc.page_content)
