@@ -682,3 +682,11 @@ for idx in selected_indices:
 # Opcional: Teste com uma pergunta personalizada
 print("\n🔍 Teste com pergunta personalizada:")
 search("Como funciona o anycast no IPv6?")
+=====
+
+
+### 2026-03-17
+
+1.Leitura e compreensão dos colab da aula de hoje:
+a)Código de referência do 2-stage IR usando a API do langchain_classic.
+b)_código de referência do 2-stage IR refatorado para (segundo o LLM).
