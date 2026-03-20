@@ -7,3 +7,8 @@ Foi definido que o material de base para treinamento do modelo será o arquivo "
 ### 2026-03-06
 
 PyMuPDF foi testado e obtivemos sucesso ao transformar PDF em texto.
+
+
+### 2026-03-19
+
+Voltei hoje, ainda tenho que me atualizar em algumas coisas do projeto. Testei a VM e não obtive sucesso
