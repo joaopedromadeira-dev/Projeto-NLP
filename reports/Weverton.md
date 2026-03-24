@@ -183,3 +183,7 @@ sudo rm /etc/apparmor.d/firefox
 * VM deu problema com driver da NVidia
 * Portado para o Colab o código de uso de Langchain com rerankers
 * O resultado não foi satisfatório
+
+### 2026-03-23
+
+* Apresentação e estudo do doccano para text labeling
