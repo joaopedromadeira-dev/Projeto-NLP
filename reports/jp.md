@@ -129,3 +129,7 @@ na pilha de protocolos. Os mecanismos, que fazem parte desta classe, são BIS e 
 # 16/03/26
 
 ## Acesso a VM e Configuração do browser da VM, tentando instalar o ambiente para rodar o python
+
+# 24/03/26
+
+## Problema no driver da NVIDIA na VM ubuntu
