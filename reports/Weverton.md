@@ -191,3 +191,7 @@ sudo rm /etc/apparmor.d/firefox
 ### 2026-03-24
 
 * Pesquisas para aprimoramento das repostas dadas às perguntas.
+
+### 2026-03-25
+
+* Finalmente consegui obter melhores resultados, porém foi necessário o uso de uma LLM no final (RAG)
