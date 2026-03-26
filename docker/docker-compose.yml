@@ -1,0 +1,52 @@
+version: '3.9'
+
+services:
+  hf_marimo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hf_marimo
+    
+    # DevContainer specified remoteUser: root
+    user: root
+    
+    # GPU Support for Native Linux
+    # Requires NVIDIA Container Toolkit installed on host
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    volumes:
+      # UPDATE THIS PATH to your actual Linux directory
+      # Example: /home/john/hf_cache or /mnt/nvme/hf_cache
+      - type: bind
+        source: /home/senacgoon.local/202473555/TecIA/hf_cache
+        target: /root/.cache/huggingface
+      
+      # Mount current project directory
+      - type: bind
+        source: .
+        target: /workspaces/hf_marimo/source
+
+    env_file:
+      - .env
+
+    ports:
+      - "2718:2718"
+  
+  doccanno:
+    container_name: doccano
+    image: doccano/doccano
+    ports:
+      - "8000:8000"
+    volumes:
+      - doccano_db:/data
+    env_file:
+      - .env_doccano
+
+volumes:
+  doccano_db: 
