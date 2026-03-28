@@ -134,7 +134,11 @@ na pilha de protocolos. Os mecanismos, que fazem parte desta classe, são BIS e 
 
 ## Problema no driver da NVIDIA na VM ubuntu
 
-# 25/03/26
+# 26/03/26
 
 ## Implementando LLM as a Judge e finalizando o ciclo de RAG, problemas ainda para fazer funcionar
+
+# 27/03/26
+
+## Configuração do Docker + Marimo na VM linux, finalizando notebook colab e subindo pro repositorio
 

@@ -55,3 +55,6 @@ executado em um computador implementando o Tunnel Setup Protocol (TSP). Esse cli
 automaticamente um túnel configurado entre o computador ou roteador e o Tunnel Broker Freenet6,
 tornando a implementação de conectividade IPv6 simples de se instalar e manter, além de ser gratuito,
 licenciado através da GPL
+
+### 2026-03-27
+GPU funcionando na maquina virtual, docker esta instalado e funcionando com a GPU. Falta apenas rodar os arquivos docker para instalar Marimo e Doccano
