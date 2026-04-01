@@ -195,3 +195,20 @@ sudo rm /etc/apparmor.d/firefox
 ### 2026-03-25
 
 * Finalmente consegui obter melhores resultados, porém foi necessário o uso de uma LLM no final (RAG)
+
+### 2026-03-27
+
+* Ausente
+
+### 2026-03-30
+
+* Testes testes com finetunning seguindo [tutorial](https://sbert.net/docs/cross_encoder/training_overview.html)
+* CrossEncoder usado: `PORTULAN/serafim-100m-portuguese-pt-sentence-encoder-ir`
+* [Dataset](https://drive.google.com/drive/folders/1W4i8UayZiWP7MlZm9YbKOgr3meWEEMxA)
+* Executar primeiro em container local e depois na VM/Colab
+
+### 2026-03-31
+
+* Executado o código de ontem na máquina local com estimativa de mais de 500h pra finalizar o treinamento
+* Executado o código de ontem na VM com estimativa de mais de 2.5h pra finalizar o treinamento
+ 
