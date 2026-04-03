@@ -2167,8 +2167,159 @@ logging.info(f"✅ Modelo salvo em: {final_output_dir}")
 
 Processo Killed
 
-### 31.02.2026
+### 2026-31-03
 
 Experimentação do Código acima no Colab e na VM.
 No Colab estima 35hs, depois para o processo.
 No Colab VM, previsão de 83h.
+
+
+### 2026-04-02
+
+Adpataçao do código LORA
+
+# ============================================
+# Setup Env (igual ao código 1)
+# ============================================
+!pip install -q transformers datasets accelerate bitsandbytes sentence-transformers \
+                langchain langchain-huggingface langchain-chroma langchain-community \
+                --upgrade
+
+# ============================================
+# Imports (mescla dos dois códigos)
+# ============================================
+import logging
+from datasets import load_dataset
+from transformers import AutoTokenizer
+from peft import get_peft_model, LoraConfig, TaskType
+from sentence_transformers.cross_encoder import (
+    CrossEncoder,
+    CrossEncoderTrainer,
+    CrossEncoderTrainingArguments,
+)
+from sentence_transformers.cross_encoder.losses import CachedMultipleNegativesRankingLoss
+
+# Tenta importar BatchSamplers (evita duplicatas no batch)
+try:
+    from sentence_transformers.cross_encoder import BatchSamplers
+except ImportError:
+    try:
+        from sentence_transformers.training_args import BatchSamplers
+    except ImportError:
+        BatchSamplers = None
+        logging.warning("BatchSamplers não encontrado, usando padrão.")
+
+logging.basicConfig(
+    format="%(asctime)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO
+)
+
+# ============================================
+# 1. Carregar o CrossEncoder base (nome do segundo código)
+# ============================================
+model_name = "PORTULAN/serafim-100m-portuguese-pt-sentence-encoder"  # sem o sufixo -ir
+model = CrossEncoder(model_name)
+tokenizer = AutoTokenizer.from_pretrained(model_name)  # opcional, CrossEncoder já tem
+logging.info(f"Modelo base carregado: {model_name}")
+
+# ============================================
+# 2. Adicionar LoRA ao modelo interno do CrossEncoder
+# ============================================
+# O modelo interno (transformers) está em model.model
+peft_config = LoraConfig(
+    task_type=TaskType.SEQ_CLS,
+    inference_mode=False,
+    r=8,
+    lora_alpha=16,
+    lora_dropout=0.1,
+    target_modules=["query", "key", "value", "dense"],   # mesmos alvos do código 1
+    modules_to_save=["classifier", "pooler"]             # treinar cabeça de classificação
+)
+
+model.model = get_peft_model(model.model, peft_config)
+model.model.print_trainable_parameters()  # mostra poucos parâmetros treináveis
+
+# ============================================
+# 3. Carregar dataset (arquivo único do segundo código)
+# ============================================
+data_files = "/content/drive/MyDrive/UC15/train-0000-of-0066.parquet"
+dataset = load_dataset("parquet", data_files=data_files, split="train")
+logging.info(f"Dataset carregado: {len(dataset)} exemplos")
+logging.info(f"Colunas originais: {dataset.column_names}")
+
+# Converter triplas (query, positive, negative) para pares (query, passage)
+# Apenas os positivos são mantidos; a loss amostra negativos dinamicamente
+def triplet_to_pairs(examples):
+    return {
+        'query': examples['query'],
+        'passage': examples['positive']
+    }
+
+dataset = dataset.map(triplet_to_pairs, batched=True, remove_columns=['positive', 'negative'])
+logging.info(f"Dataset convertido para pares: {dataset.column_names}")
+logging.info(f"Tamanho após conversão: {len(dataset)}")
+
+# Dividir treino/validação (10% para validação)
+dataset_dict = dataset.train_test_split(test_size=0.1, seed=42)
+train_dataset = dataset_dict["train"]
+eval_dataset = dataset_dict["test"]
+logging.info(f"Treino: {len(train_dataset)} | Validação: {len(eval_dataset)}")
+
+# ============================================
+# 4. Função de perda (Multiple Negatives Ranking Loss)
+# ============================================
+num_rand_negatives = 5
+loss = CachedMultipleNegativesRankingLoss(
+    model=model,
+    num_negatives=num_rand_negatives,
+    mini_batch_size=32,
+)
+
+# ============================================
+# 5. Argumentos de treinamento (baseados no segundo código)
+# ============================================
+run_name = "serafim-pt-reranker-lora"
+args_dict = {
+    "output_dir": f"models/{run_name}",
+    "num_train_epochs": 3,
+    "per_device_train_batch_size": 16,
+    "per_device_eval_batch_size": 16,
+    "learning_rate": 2e-5,
+    "warmup_ratio": 0.1,
+    "fp16": True,
+    "eval_strategy": "steps",
+    "eval_steps": 500,
+    "save_strategy": "steps",
+    "save_steps": 500,
+    "save_total_limit": 2,
+    "logging_steps": 100,
+    "logging_first_step": True,
+    "run_name": run_name,
+    "seed": 42,
+}
+if BatchSamplers is not None:
+    args_dict["batch_sampler"] = BatchSamplers.NO_DUPLICATES
+
+args = CrossEncoderTrainingArguments(**args_dict)
+
+# ============================================
+# 6. Treinamento com CrossEncoderTrainer
+# ============================================
+trainer = CrossEncoderTrainer(
+    model=model,
+    args=args,
+    train_dataset=train_dataset,
+    eval_dataset=eval_dataset,
+    loss=loss,
+)
+
+logging.info("🚀 Iniciando treinamento com LoRA e MultipleNegativesRankingLoss...")
+trainer.train()
+
+# ============================================
+# 7. Salvar modelo final (incluindo adaptadores LoRA)
+# ============================================
+final_output_dir = f"models/{run_name}/final"
+model.save_pretrained(final_output_dir)
+logging.info(f"✅ Modelo salvo em: {final_output_dir}")
