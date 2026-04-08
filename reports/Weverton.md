@@ -211,4 +211,20 @@ sudo rm /etc/apparmor.d/firefox
 
 * Executado o código de ontem na máquina local com estimativa de mais de 500h pra finalizar o treinamento
 * Executado o código de ontem na VM com estimativa de mais de 2.5h pra finalizar o treinamento
- 
+
+### 2026-04-01
+
+* Ausente 
+
+### 2026-04-02
+
+* Ausente 
+
+### 2026-04-06
+
+* Configuração do container com VLLM usando modelo `PORTULAN/gervasio-8b-portuguese-ptpt-decoder`
+* Criado notebook para integrar o LangChain com o client OpenAI para interagir com o VLLM
+
+### 2026-04-07
+
+* Criado notebook para processar o PDF usando LangChain com RAG consultando no VLLM
