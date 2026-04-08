@@ -58,3 +58,9 @@ licenciado através da GPL
 
 ### 2026-03-27
 GPU funcionando na maquina virtual, docker esta instalado e funcionando com a GPU. Falta apenas rodar os arquivos docker para instalar Marimo e Doccano
+
+### 2026-03-31
+Rodei o modelo usando o codigo que o professor passou na VM
+
+### 2026-04-07
+Instalaçao vLLM, falta integrar com fast api 
