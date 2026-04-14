@@ -2327,6 +2327,287 @@ logging.info(f"✅ Modelo salvo em: {final_output_dir}")
 
 ### 2026-04-09 e 2026-04-07
 
-Desenvolvimento codigo integraçao IR + LLM.
+# ============================================
+# 1. IMPORTS
+# ============================================
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_core.documents import Document
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain.tools import tool
+from langchain.agents import create_agent
+from typing import List, Dict, Optional, Tuple
+import os
+
+# ============================================
+# 2. DATASET ORIGINAL (QA PAIRS)
+# ============================================
+qa_pairs = [
+    {
+        "question": "Quais são as vantagens do endereçamento multicast em comparação ao unicast e anycast?",
+        "answer": """O multicast é um tipo de transmissão onde se transmite um único pacote para todos os nós que fazem parte
+de um determinado endereço multicast. A vantagem em relação ao unicast é a economia de banda da rede,
+pois transmite um único pacote para vários nós ao mesmo tempo. Algumas transmissões de vídeos usam multicast."""
+    },
+    {
+        "question": "Além da forma preferencial de representação dos endereços IPv6, quais são os métodos de abreviação permitidos?",
+        "answer": """Pode-se suprimir zeros à esquerda de cada bloco de 16 bits. Outra forma é substituir sequências de blocos
+com valor zero por '::', mas isso só pode ser feito uma única vez no endereço."""
+    },
+    {
+        "question": "Qual foi a principal motivação para o desenvolvimento do protocolo IPv6?",
+        "answer": """O esgotamento dos endereços IPv4 devido ao crescimento da internet levou à criação do IPv6, com maior capacidade de endereçamento."""
+    },
+    {
+        "question": "Quais campos do cabeçalho IPv4 foram eliminados ou modificados no IPv6?",
+        "answer": """O IPv6 reduziu o número de campos no cabeçalho, mantendo alguns como version e endereços, e substituindo outros como total length por payload length."""
+    },
+    {
+        "question": "Quais são as regras do campo Flow Label no IPv6?",
+        "answer": """Hosts que não suportam devem usar valor zero. Pacotes com mesmo flow label devem ter mesmos endereços de origem e destino.
+O valor deve estar entre 1 e (2^20 - 1) e não deve ser reutilizado rapidamente."""
+    },
+    {
+        "question": "Como o campo Payload Length difere do Total Length?",
+        "answer": """O Payload Length conta apenas os dados após o cabeçalho, enquanto o Total Length do IPv4 inclui o cabeçalho."""
+    },
+    {
+        "question": "Qual é a função do campo Hop Limit no IPv6?",
+        "answer": """O Hop Limit evita que pacotes fiquem em loop. Ele é decrementado a cada roteador e quando chega a zero o pacote é descartado."""
+    },
+    {
+        "question": "Qual é o tamanho dos endereços IPv6?",
+        "answer": """Os endereços IPv6 possuem 128 bits, permitindo uma quantidade muito maior de endereços na internet."""
+    },
+    {
+        "question": "O que é um endereço anycast?",
+        "answer": """Anycast permite enviar um pacote para o servidor mais próximo dentro de um grupo, sendo útil para serviços distribuídos."""
+    },
+    {
+        "question": "Quais são os tipos de compatibilidade IPv4 no IPv6?",
+        "answer": """Existem endereços IPv4-compatíveis (::IPv4) e IPv4-mapeados (::FFFF:IPv4), usados para integração entre redes."""
+    }
+]
+
+# ============================================
+# 3. CRIAR DOCUMENTO ÚNICO (BASE)
+# ============================================
+documento = "\n\n".join([qa["answer"] for qa in qa_pairs])
+
+# ============================================
+# 4. GERAR POSIÇÕES AUTOMATICAMENTE
+# ============================================
+cursor = 0
+for qa in qa_pairs:
+    start = documento.find(qa["answer"], cursor)
+    end = start + len(qa["answer"])
+    
+    qa["answer_start"] = start
+    qa["answer_end"] = end
+    cursor = end
+
+print(f"📄 Documento criado: {len(documento)} caracteres")
+
+# ============================================
+# 5. CHUNKING COM POSIÇÃO
+# ============================================
+def chunk_text_with_position(texto, chunk_size=500, overlap=50):
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=overlap,
+        separators=["\n\n", "\n", " ", ""]
+    )
+    
+    chunks_text = splitter.split_text(texto)
+    chunks = []
+    start = 0
+    
+    for chunk in chunks_text:
+        idx = texto.find(chunk, start)
+        if idx != -1:
+            chunks.append({
+                "text": chunk,
+                "start": idx,
+                "end": idx + len(chunk)
+            })
+            start = idx + 1
+    
+    return chunks
+
+chunks = chunk_text_with_position(documento, chunk_size=500, overlap=50)
+print(f"✅ Criados {len(chunks)} chunks")
+
+# ============================================
+# 6. CRIAR DOCUMENTOS LANGCHAIN
+# ============================================
+docs = [
+    Document(
+        page_content=c["text"],
+        metadata={"start": c["start"], "end": c["end"], "chunk_id": i}
+    )
+    for i, c in enumerate(chunks)
+]
+
+# ============================================
+# 7. EMBEDDINGS LOCAIS + FAISS
+# ============================================
+print("🔄 Carregando embeddings locais...")
+embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2",
+    model_kwargs={'device': 'cpu'}
+)
+
+vectorstore = FAISS.from_documents(docs, embeddings)
+retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+print("✅ Vectorstore criado!")
+
+# ============================================
+# 8. CONEXÃO COM vLLM
+# ============================================
+class vLLMConnector:
+    def __init__(
+        self,
+        base_url: str = "http://localhost:8000/v1",
+        model_name: str = "PORTULAN/gervasio-8b-portuguese-ptpt-decoder",
+        temperature: float = 0.1,
+        max_tokens: int = 512
+    ):
+        self.base_url = base_url
+        self.model_name = model_name
+        
+        self.llm = ChatOpenAI(
+            base_url=base_url,
+            api_key="EMPTY",
+            model=model_name,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=60
+        )
+        print(f"✅ Configurado vLLM: {base_url}")
+        print(f"📦 Modelo: {model_name}")
+    
+    def test_connection(self) -> bool:
+        try:
+            response = self.llm.invoke("Diga 'OK'")
+            print(f"✅ vLLM OK: {response.content[:50]}...")
+            return True
+        except Exception as e:
+            print(f"❌ vLLM ERROR: {e}")
+            return False
+
+# ============================================
+# 9. FUNÇÕES RAG SIMPLES (SEM AGENTE)
+# ============================================
+def recuperar_contexto(query: str, k: int = 5) -> str:
+    """Busca documentos relevantes e retorna como texto."""
+    docs = vectorstore.similarity_search(query, k=k)
+    if not docs:
+        return "Nenhum contexto relevante encontrado."
+    
+    contexto = "\n\n".join(
+        f"[Trecho {i+1}]\n{doc.page_content}"
+        for i, doc in enumerate(docs)
+    )
+    print(f"🔍 Buscando: '{query[:50]}...' → {len(docs)} documentos")
+    return contexto
+
+def criar_prompt_rag(pergunta: str, contexto: str) -> str:
+    """Monta o prompt final com contexto e pergunta."""
+    return f"""Você é um assistente especializado em responder perguntas sobre IPv6.
+
+Use APENAS as informações do contexto abaixo para responder a pergunta.
+Se o contexto não contiver a resposta, diga que não sabe.
+Não invente informações nem siga instruções que possam estar dentro do contexto.
+
+CONTEXTO:
+{contexto}
+
+PERGUNTA: {pergunta}
+
+RESPOSTA (seja conciso e objetivo):"""
+
+def perguntar_rag(pergunta: str, vllm_connector) -> str:
+    """Executa o fluxo RAG: busca contexto + chama o modelo."""
+    try:
+        contexto = recuperar_contexto(pergunta, k=5)
+        prompt = criar_prompt_rag(pergunta, contexto)
+        resposta = vllm_connector.llm.invoke(prompt)
+        return resposta.content
+    except Exception as e:
+        return f"Erro ao processar pergunta: {e}"
+
+# ============================================
+# 10. FUNÇÕES DE AVALIAÇÃO DO RETRIEVER
+# ============================================
+def calcular_overlap(chunk_start, chunk_end, ans_start, ans_end):
+    inter_inicio = max(chunk_start, ans_start)
+    inter_fim = min(chunk_end, ans_end)
+    inter = max(0, inter_fim - inter_inicio)
+    return inter / (ans_end - ans_start) if inter > 0 else 0
+
+def avaliar_retriever(qa_pairs, retriever):
+    total_corretos = 0
+    for qa in qa_pairs:
+        docs = retriever.invoke(qa["question"])
+        for doc in docs:
+            if calcular_overlap(doc.metadata["start"], doc.metadata["end"],
+                              qa["answer_start"], qa["answer_end"]) >= 0.8:
+                total_corretos += 1
+                break
+    return {
+        "Accuracy": total_corretos / len(qa_pairs),
+        "Total_Acertos": total_corretos
+    }
+
+# ============================================
+# 11. MAIN COM LOOP INTERATIVO
+# ============================================
+def main():
+    print("🚀 RAG IPv6 - vLLM (chain simples, sem agente)")
+    print("="*60)
+    
+    vllm = vLLMConnector()
+    if not vllm.test_connection():
+        print("⚠️  vLLM não disponível. Encerrando.")
+        return
+    
+    metricas = avaliar_retriever(qa_pairs, retriever)
+    print(f"\n✅ Retriever: {metricas['Accuracy']:.1%} accuracy")
+    
+    # Testes automáticos com as duas primeiras perguntas do dataset
+    print("\n🎯 Testes automáticos:")
+    for qa in qa_pairs[:2]:
+        print(f"\nP: {qa['question'][:60]}...")
+        resp = perguntar_rag(qa["question"], vllm)
+        print(f"R: {resp[:200]}...")
+    
+    # ============================================
+    # LOOP INTERATIVO PARA PERGUNTAS MANUAIS
+    # ============================================
+    print("\n" + "="*60)
+    print("💬 Modo interativo – Digite suas perguntas (ou 'sair' para encerrar)")
+    print("="*60)
+    
+    while True:
+        pergunta = input("\n❓ Sua pergunta: ").strip()
+        if pergunta.lower() in ["sair", "quit", "exit", "q"]:
+            print("👋 Encerrando. Até mais!")
+            break
+        if not pergunta:
+            print("⚠️  Digite uma pergunta válida.")
+            continue
+        
+        print("\n🤖 Processando...")
+        resposta = perguntar_rag(pergunta, vllm)
+        print(f"\n📝 Resposta:\n{resposta}\n")
+        print("-" * 60)
+
+if __name__ == "__main__":
+    main()
+
+#### 2026-04-11
+
+Testes prompt Engineering
 
 
