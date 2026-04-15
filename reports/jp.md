@@ -142,3 +142,7 @@ na pilha de protocolos. Os mecanismos, que fazem parte desta classe, são BIS e 
 
 ## Configuração do Docker + Marimo na VM linux, finalizando notebook colab e subindo pro repositorio
 
+# 14/04/26
+
+## Atualização do projeto para a 2ª fase do projeto, tentando rodar direto da vm utilizando o vscode
+
