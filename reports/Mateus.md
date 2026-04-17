@@ -73,3 +73,6 @@ falta rodar o codigo e pesquisei sobre o que o professor passou na aula.
 
 ### 2026-04-14
 revisão do codigo
+
+### 2026-04-16
+fazendo testes
