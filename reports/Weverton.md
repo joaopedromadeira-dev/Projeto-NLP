@@ -240,3 +240,25 @@ sudo rm /etc/apparmor.d/firefox
 ### 2026-04-10
 
 * Introdução à quantização
+
+### 2026-04-13
+
+* Modelos conversacionais, atualmente, pra ter resultados aceitáveis, precisam ter pelo menos 7B de parâmetros
+* Métricas para RAG: [RAGS](https://www.ragas.io/)
+
+### 2026-04-15
+
+* Aula on-line
+
+### 2026-04-16
+
+* Configuração do VSCode na VM para conseguir rodar Dev Containers.
+
+### 2026-04-17
+
+* Testes seguindo o exemplo fornecido pelo Dieggo. Funcionou normalmente.
+
+### 2026-04-22 
+
+* Apresentação de processamento de áudio com IA
+* Modelo referência: Whisper
